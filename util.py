@@ -8,11 +8,14 @@ from nltk import tokenize
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
+from typing import List
+from flair.data import Sentence, Token
+import jieba
 
 def cn_tokenizer(text: str) -> List[Token]:
     jieba_tokens = jieba.cut(text)
     tokens: List[Token] = [Token(token) for token in jieba_tokens]
-    return Tokens
+    return tokens
 
 def stopwords_cn():
     with open('stopwords-zh.txt', 'r') as f:
