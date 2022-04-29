@@ -60,11 +60,11 @@ def main(dataset_path, temp_dir):
                 if word in stop_words or "/" in word or len(word) == 0:
                     continue
                 word_dump_dir = dump_dir + word
-                os.makedirs(word_dump_dir, exist_ok=True)
-                fname = word_dump_dir + "/" + str(word_counter[word]) + ".pkl"
-                word_counter[word] += 1
-                vec = token.embedding.cpu().numpy()
                 try:
+                    os.makedirs(word_dump_dir, exist_ok=True)
+                    fname = word_dump_dir + "/" + str(word_counter[word]) + ".pkl"
+                    word_counter[word] += 1
+                    vec = token.embedding.cpu().numpy()
                     with open(fname, "wb") as handler:
                         pickle.dump(vec, handler)
                 except Exception as e:
