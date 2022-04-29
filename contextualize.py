@@ -5,51 +5,63 @@ import flair, torch
 from collections import defaultdict
 from statistics import median
 from sklearn.cluster import KMeans
-from flair.data import Sentence
+from flair.data import Sentence, Token
 from flair.embeddings import TransformerWordEmbeddings
 from nltk import sent_tokenize
-from nltk.corpus import stopwords
 from util import *
+import jieba
+from typing import List
 
+def cn_tokenizer(text: str) -> List[Token]:
+    jieba_tokens = jieba.cut(text)
+    tokens: List[Token] = [Token(token) for token in jieba_tokens]
+    return Tokens
+
+def stopwords_cn():
+    with open('stopwords-zh.txt', 'r') as f:
+        stop_words = set(f.read().splitlines())
+    stop_words.remove("我")
+    stop_words.remove("我们")
+    stop_words.remove("俺")
+    stop_words.remove("俺们")
+    return stop_words
 
 def main(dataset_path, temp_dir):
     def dump_bert_vecs(df, dump_dir):
         print("Getting BERT vectors...")
-        embedding = TransformerWordEmbeddings('bert-base-uncased')
+        embedding = TransformerWordEmbeddings('bert-base-chinese')
         word_counter = defaultdict(int)
-        stop_words = set(stopwords.words('english'))
-        stop_words.add("would")
+        stopwords = stopwords_cn()
         except_counter = 0
 
         for index, row in df.iterrows():
             if index % 100 == 0:
                 print("Finished sentences: " + str(index) + " out of " + str(len(df)))
             line = row["sentence"]
-            sentences = sent_tokenize(line)
-            for sentence_ind, sent in enumerate(sentences):
-                sentence = Sentence(sent, use_tokenizer=True)
+            # Texts are all pretty short, so not doing sentence tokenizaton; doing entire text instead.
+            sentence = Sentence(line, use_tokenizer=cn_tokenizer)
+            try:
+                embedding.embed(sentence)
+            except Exception as e:
+                except_counter += 1
+                print("Exception Counter while getting BERT: ", except_counter, index, e)
+                continue
+            for token_ind, token in enumerate(sentence):
+                word = token.text
+                word = word.translate(str.maketrans('', '', string.punctuation))
+                if word in stop_words or "/" in word or len(word) == 0:
+                    continue
+                word_dump_dir = dump_dir + word
+                os.makedirs(word_dump_dir, exist_ok=True)
+                fname = word_dump_dir + "/" + str(word_counter[word]) + ".pkl"
+                word_counter[word] += 1
+                vec = token.embedding.cpu().numpy()
                 try:
-                    embedding.embed(sentence)
+                    with open(fname, "wb") as handler:
+                        pickle.dump(vec, handler)
                 except Exception as e:
                     except_counter += 1
-                    print("Exception Counter while getting BERT: ", except_counter, sentence_ind, index, e)
-                    continue
-                for token_ind, token in enumerate(sentence):
-                    word = token.text
-                    word = word.translate(str.maketrans('', '', string.punctuation))
-                    if word in stop_words or "/" in word or len(word) == 0:
-                        continue
-                    word_dump_dir = dump_dir + word
-                    os.makedirs(word_dump_dir, exist_ok=True)
-                    fname = word_dump_dir + "/" + str(word_counter[word]) + ".pkl"
-                    word_counter[word] += 1
-                    vec = token.embedding.cpu().numpy()
-                    try:
-                        with open(fname, "wb") as handler:
-                            pickle.dump(vec, handler)
-                    except Exception as e:
-                        except_counter += 1
-                        print("Exception Counter while dumping BERT: ", except_counter, sentence_ind, index, word, e)
+                    print("Exception Counter while dumping BERT: ", except_counter, index, word, e)
 
     def compute_tau(label_seedwords_dict, bert_dump_dir):
         print("Computing Similarity Threshold..")
@@ -126,9 +138,8 @@ def main(dataset_path, temp_dir):
             return max_sim_id
 
         print("Contextualizing the corpus..")
-        embedding = TransformerWordEmbeddings('bert-base-uncased')
-        stop_words = set(stopwords.words('english'))
-        stop_words.add('would')
+        embedding = TransformerWordEmbeddings('bert-base-chinese')
+        stop_words = stopwords_cn()
         except_counter = 0
         word_cluster = {}
 
@@ -136,45 +147,43 @@ def main(dataset_path, temp_dir):
             if index % 100 == 0:
                 print("Finished rows: " + str(index) + " out of " + str(len(df)))
             line = row["sentence"]
-            sentences = sent_tokenize(line)
-            for sentence_ind, sent in enumerate(sentences):
-                sentence = Sentence(sent, use_tokenizer=True)
-                embedding.embed(sentence)
-                for token_ind, token in enumerate(sentence):
-                    word = token.text
-                    if word in stop_words:
-                        continue
-                    word_clean = word.translate(str.maketrans('', '', string.punctuation))
-                    if len(word_clean) == 0 or word_clean in stop_words or "/" in word_clean:
-                        continue
+            sentence = Sentence(line, use_tokenizer=cn_tokenizer)
+            embedding.embed(sentence)
+            for token_ind, token in enumerate(sentence):
+                word = token.text
+                if word in stop_words:
+                    continue
+                word_clean = word.translate(str.maketrans('', '', string.punctuation))
+                if len(word_clean) == 0 or word_clean in stop_words or "/" in word_clean:
+                    continue
+                try:
+                    cc = word_cluster[word_clean]
+                except:
                     try:
-                        cc = word_cluster[word_clean]
+                        cc = word_cluster[word]
                     except:
+                        word_clean_path = cluster_dump_dir + word_clean + "/cc.pkl"
+                        word_path = cluster_dump_dir + word + "/cc.pkl"
                         try:
-                            cc = word_cluster[word]
+                            with open(word_clean_path, "rb") as handler:
+                                cc = pickle.load(handler)
+                            word_cluster[word_clean] = cc
                         except:
-                            word_clean_path = cluster_dump_dir + word_clean + "/cc.pkl"
-                            word_path = cluster_dump_dir + word + "/cc.pkl"
                             try:
-                                with open(word_clean_path, "rb") as handler:
+                                with open(word_path, "rb") as handler:
                                     cc = pickle.load(handler)
-                                word_cluster[word_clean] = cc
-                            except:
-                                try:
-                                    with open(word_path, "rb") as handler:
-                                        cc = pickle.load(handler)
-                                    word_cluster[word] = cc
-                                except Exception as e:
-                                    except_counter += 1
-                                    print("Exception Counter while getting clusters: ", except_counter, index, e)
-                                    continue
+                                word_cluster[word] = cc
+                            except Exception as e:
+                                except_counter += 1
+                                print("Exception Counter while getting clusters: ", except_counter, index, e)
+                                continue
 
-                    if len(cc) > 1:
-                        tok_vec = token.embedding.cpu().numpy()
-                        cluster = get_cluster(tok_vec, cc)
-                        sentence.tokens[token_ind].text = word + "$" + str(cluster)
-                sentences[sentence_ind] = to_tokenized_string(sentence)
-            df["sentence"][index] = " . ".join(sentences)
+                if len(cc) > 1:
+                    tok_vec = token.embedding.cpu().numpy()
+                    cluster = get_cluster(tok_vec, cc)
+                    sentence.tokens[token_ind].text = word + "$" + str(cluster)
+            sentence = to_tokenized_string(sentence)
+            df["sentence"][index] = sentence
         return df, word_cluster
 
     pkl_dump_dir = dataset_path

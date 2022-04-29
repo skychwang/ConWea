@@ -9,6 +9,19 @@ from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 
+def cn_tokenizer(text: str) -> List[Token]:
+    jieba_tokens = jieba.cut(text)
+    tokens: List[Token] = [Token(token) for token in jieba_tokens]
+    return Tokens
+
+def stopwords_cn():
+    with open('stopwords-zh.txt', 'r') as f:
+        stop_words = set(f.read().splitlines())
+    stop_words.remove("我")
+    stop_words.remove("我们")
+    stop_words.remove("俺")
+    stop_words.remove("俺们")
+    return stop_words
 
 def cosine_similarity(a, b):
     return 1 - spatial.distance.cosine(a, b)
@@ -98,7 +111,7 @@ def prep_data(max_sentence_length, max_sentences, texts, tokenizer):
     data = np.zeros((len(texts), max_sentences, max_sentence_length), dtype='int32')
     documents = []
     for text in texts:
-        sents = tokenize.sent_tokenize(text)
+        sents = [text]
         documents.append(sents)
     for i, sentences in enumerate(documents):
         tokenized_sentences = tokenizer.texts_to_sequences(

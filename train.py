@@ -14,6 +14,19 @@ from keras_han.model import HAN
 from nltk.corpus import stopwords
 import os
 
+def cn_tokenizer(text: str) -> List[Token]:
+    jieba_tokens = jieba.cut(text)
+    tokens: List[Token] = [Token(token) for token in jieba_tokens]
+    return Tokens
+
+def stopwords_cn():
+    with open('stopwords-zh.txt', 'r') as f:
+        stop_words = set(f.read().splitlines())
+    stop_words.remove("我")
+    stop_words.remove("我们")
+    stop_words.remove("俺")
+    stop_words.remove("俺们")
+    return stop_words
 
 def main(dataset_path, print_flag=True):
     def train_word2vec(df, dataset_path):
@@ -60,8 +73,7 @@ def main(dataset_path, print_flag=True):
 
     def preprocess(df, word_cluster):
         print("Preprocessing data..")
-        stop_words = set(stopwords.words('english'))
-        stop_words.add('would')
+        stop_words = stopwords_cn()
         word_vec = {}
         for index, row in df.iterrows():
             if index % 100 == 0:
