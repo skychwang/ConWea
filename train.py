@@ -14,11 +14,6 @@ from keras_han.model import HAN
 from nltk.corpus import stopwords
 import os
 
-def cn_tokenizer(text: str) -> List[Token]:
-    jieba_tokens = jieba.cut(text)
-    tokens: List[Token] = [Token(token) for token in jieba_tokens]
-    return Tokens
-
 def stopwords_cn():
     with open('stopwords-zh.txt', 'r') as f:
         stop_words = set(f.read().splitlines())
@@ -46,7 +41,7 @@ def main(dataset_path, print_flag=True):
                 print('Model: CBOW')
             embedding_model = word2vec.Word2Vec(sentences, workers=num_workers,
                                                 sg=sg,
-                                                size=size_features,
+                                                vector_size=size_features,
                                                 min_count=min_word_count,
                                                 window=context,
                                                 sample=downsampling)
@@ -54,8 +49,8 @@ def main(dataset_path, print_flag=True):
             embedding_weights = np.zeros((len(vocabulary_inv) + 1, size_features))
             embedding_weights[0] = 0
             for i, word in vocabulary_inv.items():
-                if word in embedding_model:
-                    embedding_weights[i] = embedding_model[word]
+                if word in embedding_model.wv:
+                    embedding_weights[i] = embedding_model.wv[word]
                 else:
                     embedding_weights[i] = np.random.uniform(-0.25, 0.25, embedding_model.vector_size)
 
@@ -181,7 +176,7 @@ def main(dataset_path, print_flag=True):
         es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=3)
         mc = ModelCheckpoint(filepath=tmp_dir + 'model.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_acc', mode='max',
                              verbose=1, save_weights_only=True, save_best_only=True)
-        model.fit(X_train, y_train, validation_data=(X_val, y_val), nb_epoch=100, batch_size=256, callbacks=[es, mc])
+        model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=100, batch_size=256, callbacks=[es, mc])
         print("****************** CLASSIFICATION REPORT FOR All DOCUMENTS ********************")
         X_all = prep_data(texts=df["sentence"], max_sentences=max_sentences, max_sentence_length=max_sentence_length,
                           tokenizer=tokenizer)

@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from typing import List
-from flair.data import Sentence, Token, Tokenizer
+from flair.data import Sentence, Token
 import jieba
 import flair
 

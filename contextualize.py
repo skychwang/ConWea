@@ -7,10 +7,12 @@ from statistics import median
 from sklearn.cluster import KMeans
 from flair.data import Sentence, Token, Tokenizer
 from flair.embeddings import TransformerWordEmbeddings
-from nltk import sent_tokenize
 from util import *
 import jieba
 from typing import List
+from tqdm import tqdm
+import warnings
+warnings.filterwarnings("ignore")
 
 class CN_Tokenizer(flair.data.Tokenizer):
     def __init__(self):
@@ -35,14 +37,14 @@ def stopwords_cn():
 def main(dataset_path, temp_dir):
     def dump_bert_vecs(df, dump_dir):
         print("Getting BERT vectors...")
-        embedding = TransformerWordEmbeddings('bert-base-chinese')
+        embedding = TransformerWordEmbeddings('hfl/chinese-bert-wwm')
         word_counter = defaultdict(int)
         stop_words = stopwords_cn()
         except_counter = 0
 
-        for index, row in df.iterrows():
-            if index % 100 == 0:
-                print("Finished sentences: " + str(index) + " out of " + str(len(df)))
+        for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+            # if index % 100 == 0:
+            #     print("Finished sentences: " + str(index) + " out of " + str(len(df)))
             line = row["sentence"]
             # Texts are all pretty short, so not doing sentence tokenizaton; doing entire text instead.
             sentence = Sentence(line, use_tokenizer=CN_Tokenizer())
@@ -74,7 +76,7 @@ def main(dataset_path, temp_dir):
         seedword_medians = []
         for l in label_seedwords_dict:
             seed_words = label_seedwords_dict[l]
-            for word in seed_words:
+            for word in tqdm(seed_words):
                 try:
                     tok_vecs = read_bert_vectors(word, bert_dump_dir)
                     med = median(compute_pairwise_cosine_sim(tok_vecs))
@@ -95,7 +97,7 @@ def main(dataset_path, temp_dir):
         while True:
             if len(tok_vecs) < num_clusters:
                 break
-            km = KMeans(n_clusters=num_clusters, n_jobs=-1)
+            km = KMeans(n_clusters=num_clusters, n_jobs=1)
             km.fit(tok_vecs)
             cc = km.cluster_centers_
             if should_stop(cc):
@@ -108,7 +110,7 @@ def main(dataset_path, temp_dir):
         elif len(tok_vecs) <= num_clusters:
             cc = tok_vecs
         else:
-            km = KMeans(n_clusters=num_clusters, n_jobs=-1)
+            km = KMeans(n_clusters=num_clusters, n_jobs=1)
             km.fit(tok_vecs)
             cc = km.cluster_centers_
         return cc
@@ -144,7 +146,7 @@ def main(dataset_path, temp_dir):
             return max_sim_id
 
         print("Contextualizing the corpus..")
-        embedding = TransformerWordEmbeddings('bert-base-chinese')
+        embedding = TransformerWordEmbeddings('hfl/chinese-bert-wwm')
         stop_words = stopwords_cn()
         except_counter = 0
         word_cluster = {}
@@ -187,7 +189,7 @@ def main(dataset_path, temp_dir):
                 if len(cc) > 1:
                     tok_vec = token.embedding.cpu().numpy()
                     cluster = get_cluster(tok_vec, cc)
-                    sentence.tokens[token_ind].text = word + "$" + str(cluster)
+                    sentence.tokens[token_ind].form = word + "$" + str(cluster) # Form instead of text; text is property, return is form.
             sentence = to_tokenized_string(sentence)
             df["sentence"][index] = sentence
         return df, word_cluster
