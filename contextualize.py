@@ -15,7 +15,7 @@ from typing import List
 def cn_tokenizer(text: str) -> List[Token]:
     jieba_tokens = jieba.cut(text)
     tokens: List[Token] = [Token(token) for token in jieba_tokens]
-    return Tokens
+    return tokens
 
 def stopwords_cn():
     with open('stopwords-zh.txt', 'r') as f:
@@ -31,7 +31,7 @@ def main(dataset_path, temp_dir):
         print("Getting BERT vectors...")
         embedding = TransformerWordEmbeddings('bert-base-chinese')
         word_counter = defaultdict(int)
-        stopwords = stopwords_cn()
+        stop_words = stopwords_cn()
         except_counter = 0
 
         for index, row in df.iterrows():
