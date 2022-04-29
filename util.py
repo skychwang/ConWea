@@ -9,13 +9,20 @@ from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from typing import List
-from flair.data import Sentence, Token
+from flair.data import Sentence, Token, Tokenizer
 import jieba
+import flair
 
-def cn_tokenizer(text: str) -> List[Token]:
-    jieba_tokens = jieba.cut(text)
-    tokens: List[Token] = [Token(token) for token in jieba_tokens]
-    return tokens
+class CN_Tokenizer(flair.data.Tokenizer):
+    def __init__(self):
+        super(CN_Tokenizer, self).__init__()
+    def tokenize(self, text: str) -> List[str]:
+        return CN_Tokenizer.run_tokenize(text)
+    @staticmethod
+    def run_tokenize(text: str) -> List[str]:
+        jieba_tokens = jieba.cut(text)
+        tokens: List[str] = [token for token in jieba_tokens]
+        return tokens
 
 def stopwords_cn():
     with open('stopwords-zh.txt', 'r') as f:

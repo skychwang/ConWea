@@ -5,17 +5,23 @@ import flair, torch
 from collections import defaultdict
 from statistics import median
 from sklearn.cluster import KMeans
-from flair.data import Sentence, Token
+from flair.data import Sentence, Token, Tokenizer
 from flair.embeddings import TransformerWordEmbeddings
 from nltk import sent_tokenize
 from util import *
 import jieba
 from typing import List
 
-def cn_tokenizer(text: str) -> List[Token]:
-    jieba_tokens = jieba.cut(text)
-    tokens: List[Token] = [Token(token) for token in jieba_tokens]
-    return tokens
+class CN_Tokenizer(flair.data.Tokenizer):
+    def __init__(self):
+        super(CN_Tokenizer, self).__init__()
+    def tokenize(self, text: str) -> List[str]:
+        return CN_Tokenizer.run_tokenize(text)
+    @staticmethod
+    def run_tokenize(text: str) -> List[str]:
+        jieba_tokens = jieba.cut(text)
+        tokens: List[str] = [token for token in jieba_tokens]
+        return tokens
 
 def stopwords_cn():
     with open('stopwords-zh.txt', 'r') as f:
@@ -39,7 +45,7 @@ def main(dataset_path, temp_dir):
                 print("Finished sentences: " + str(index) + " out of " + str(len(df)))
             line = row["sentence"]
             # Texts are all pretty short, so not doing sentence tokenizaton; doing entire text instead.
-            sentence = Sentence(line, use_tokenizer=cn_tokenizer)
+            sentence = Sentence(line, use_tokenizer=CN_Tokenizer())
             try:
                 embedding.embed(sentence)
             except Exception as e:
@@ -147,7 +153,7 @@ def main(dataset_path, temp_dir):
             if index % 100 == 0:
                 print("Finished rows: " + str(index) + " out of " + str(len(df)))
             line = row["sentence"]
-            sentence = Sentence(line, use_tokenizer=cn_tokenizer)
+            sentence = Sentence(line, use_tokenizer=CN_Tokenizer())
             embedding.embed(sentence)
             for token_ind, token in enumerate(sentence):
                 word = token.text
